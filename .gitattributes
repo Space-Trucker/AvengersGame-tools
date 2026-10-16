@@ -1,0 +1,9 @@
+# Normalise line endings in the repo; Windows scripts keep CRLF when checked out.
+* text=auto
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.cs  text eol=crlf
+*.cpp text eol=crlf
+*.ini text eol=crlf
+*.md  text
+*.yml text eol=lf
