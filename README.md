@@ -41,8 +41,7 @@ The save tool is built with the C# compiler that ships with Windows, so it needs
 Free to use and the source is public.
 
 - **You can** use the mods for free, read the source and build it yourself.
-- **Please ask first** before re-uploading the files or publishing a modified version. If I say yes, credit
-  Space Trucker and link back to the original page.
+- **Re-uploads and modified versions:** ask first and credit Space Trucker.
 - **No commercial use:** don't sell them, put them behind a paywall or use them in a paid product.
 
 Full terms in [LICENSE](LICENSE).

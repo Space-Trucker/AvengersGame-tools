@@ -5,8 +5,7 @@ Thanks for your interest!
 - **Bug reports and suggestions** are welcome as GitHub issues. Please use the issue templates and
   attach the relevant log (`mods\ModLoader.log`, `mods\SkillUnlock.log`) and your
   game version.
-- **Code changes:** this project is source-available under a custom licence (see LICENSE), not an
-  open-source licence. Please open an issue before writing code. Pull requests can only be accepted if you
+- **Code changes:** ask first and credit Space Trucker (see LICENSE). Please open an issue before writing code. Pull requests can only be accepted if you
   agree that your contribution may be distributed under the project's licence.
 - **Saves:** never attach your save files to a public issue. They are tied to your Steam account.
 
