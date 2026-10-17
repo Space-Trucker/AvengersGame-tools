@@ -4,9 +4,9 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $out  = Join-Path $root 'out'
 $dist = Join-Path $root 'dist'
-$versions = @{ ModLoader = '1.1'; SkillUnlock = '1.0'; SaveTool = '1.0' }
+$versions = @{ ModLoader = '1.1'; SkillUnlock = '1.1'; CollectionUnlock = '1.0'; QuickStart = '1.0'; SaveTool = '1.0' }
 
-foreach ($f in 'version.dll', 'SkillUnlock.asi', 'AvengersSaveTool.exe') {
+foreach ($f in 'version.dll', 'SkillUnlock.asi', 'CollectionUnlock.asi', 'QuickStart.asi', 'AvengersSaveTool.exe') {
     if (-not (Test-Path (Join-Path $out $f))) { throw "Missing out\$f - run scripts\build.bat first." }
 }
 if (Test-Path $dist) { Remove-Item $dist -Recurse -Force }
@@ -34,6 +34,15 @@ New-Package "AvengersModLoader-$($versions.ModLoader)" @{
 New-Package "SkillUnlock-$($versions.SkillUnlock)" @{
     'mods\SkillUnlock.asi'   = Join-Path $out 'SkillUnlock.asi'
     'SkillUnlock_README.txt' = Join-Path $docs 'SkillUnlock.md'
+    'LICENSE.txt'            = $lic }
+New-Package "CollectionUnlock-$($versions.CollectionUnlock)" @{
+    'mods\CollectionUnlock.asi'   = Join-Path $out 'CollectionUnlock.asi'
+    'CollectionUnlock_README.txt' = Join-Path $docs 'CollectionUnlock.md'
+    'LICENSE.txt'               = $lic }
+New-Package "QuickStart-$($versions.QuickStart)" @{
+    'mods\QuickStart.asi'    = Join-Path $out 'QuickStart.asi'
+    'mods\QuickStart.ini'    = Join-Path $root 'src\QuickStart\QuickStart.ini'
+    'QuickStart_README.txt'  = Join-Path $docs 'QuickStart.md'
     'LICENSE.txt'            = $lic }
 New-Package "AvengersSaveTool-$($versions.SaveTool)" @{
     'AvengersSaveTool.exe'        = Join-Path $out 'AvengersSaveTool.exe'

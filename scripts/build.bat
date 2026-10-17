@@ -11,6 +11,8 @@ call "%VSDIR%\VC\Auxiliary\Build\vcvars64.bat" >nul || exit /b 1
 if not exist out mkdir out
 cl /nologo /O2 /MT /W4 /WX /EHsc /LD /std:c++17 src\ModLoader\ModLoader.cpp /Fo:out\ /Fe:out\version.dll /link /NOLOGO || exit /b 1
 cl /nologo /O2 /MT /W4 /WX /EHsc /LD /std:c++17 src\SkillUnlock\SkillUnlock.cpp /Fo:out\ /Fe:out\SkillUnlock.asi /link /NOLOGO || exit /b 1
+cl /nologo /O2 /MT /W4 /WX /EHsc /LD /std:c++17 src\CollectionUnlock\CollectionUnlock.cpp /Fo:out\ /Fe:out\CollectionUnlock.asi /link /NOLOGO || exit /b 1
+cl /nologo /O2 /MT /W4 /WX /EHsc /LD /std:c++17 src\QuickStart\QuickStart.cpp /Fo:out\ /Fe:out\QuickStart.asi /link /NOLOGO || exit /b 1
 rem The save tool uses the C# compiler that ships with Windows (.NET Framework 4.x, C# 5).
 "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /warnaserror /target:winexe /optimize /out:out\AvengersSaveTool.exe src\SaveTool\AvengersSaveTool.cs || exit /b 1
 del /q out\*.obj out\*.lib out\*.exp 2>nul

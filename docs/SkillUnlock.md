@@ -1,4 +1,4 @@
-# Skill Unlock 1.0
+# Skill Unlock 1.1
 
 by Space Trucker · Marvel's Avengers (PC, Steam version 2.8.2) · Requires a mod loader: Avengers
 ScriptHook **or** Avengers Mod Loader (either one works).
@@ -26,6 +26,7 @@ the archive into the game folder (next to `Avengers.exe`).
 
 ## Good to know
 - It acts on the hero you are currently playing.
+- Works together with Collection Unlock: its COLLECTION tile goes under UNLOCK ALL.
 - No skill points or champion points are spent. Levelling up grants the normal points, so you keep those.
 - Pick-3 skills: all three choices are bought.
 - Back up your saves first (`Documents\Marvel's Avengers\<your Steam ID>\`), or use Avengers Save Tool.
