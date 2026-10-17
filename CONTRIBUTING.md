@@ -15,3 +15,10 @@ Thanks for your interest!
 - Package: `powershell -ExecutionPolicy Bypass -File scripts\package.ps1` writes the release archives
   to `dist\`.
 - Every game address used by the mods is documented in comments at the top of each source file.
+
+## Releasing
+1. Update the versions in `scripts/package.ps1` and the tools' docs, and add a new top section to
+   `CHANGELOG.md` (the release notes are taken from it).
+2. Commit and push, then tag: `git tag v1.1` and `git push origin v1.1`.
+3. The `release` workflow builds from source, packs the archives, adds `SHA256SUMS.txt` and publishes the
+   GitHub Release. Upload the same archives to Nexus Mods.

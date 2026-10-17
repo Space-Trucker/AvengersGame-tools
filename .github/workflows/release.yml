@@ -1,0 +1,55 @@
+name: release
+
+# Push a tag like v1.0 (git tag v1.0 && git push origin v1.0): this builds every tool from source,
+# packs the release archives, adds SHA-256 checksums and publishes a GitHub Release with the notes from
+# the newest section of CHANGELOG.md.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        shell: cmd
+        run: scripts\build.bat
+
+      - name: Package
+        shell: pwsh
+        run: ./scripts/package.ps1
+
+      - name: Checksums and release notes
+        shell: pwsh
+        run: |
+          Get-ChildItem dist/*.zip | Sort-Object Name | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_ -Algorithm SHA256).Hash.ToLower(), $_.Name
+          } | Set-Content -Encoding ascii dist/SHA256SUMS.txt
+          # Notes = the newest "## ..." section of CHANGELOG.md, plus install pointers.
+          $lines = Get-Content CHANGELOG.md
+          $start = ($lines | Select-String -Pattern '^## ' | Select-Object -First 1).LineNumber
+          $next  = ($lines | Select-String -Pattern '^## ' | Select-Object -Skip 1 -First 1).LineNumber
+          $end   = if ($next) { $next - 2 } else { $lines.Count - 1 }
+          $notes = $lines[$start..$end] -join "`n"
+          $notes += "`n`n**Install:** each archive extracts into the game folder; see the docs in the repository. "
+          $notes += "Avengers Mod Loader is optional if Avengers ScriptHook works for you.`n"
+          $notes += "Checksums: SHA256SUMS.txt. Licence: see LICENSE."
+          Set-Content -Encoding utf8 dist/NOTES.md $notes
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $files = (Get-ChildItem dist/*.zip).FullName + (Resolve-Path dist/SHA256SUMS.txt).Path
+          gh release create $tag @files --title "AvengersGame-tools $tag" --notes-file dist/NOTES.md --verify-tag
