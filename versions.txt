@@ -1,0 +1,5 @@
+ModLoader=1.2
+SkillUnlock=1.2
+CollectionUnlock=1.1
+QuickStart=1.1
+SaveTool=1.1

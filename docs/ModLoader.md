@@ -1,4 +1,4 @@
-# Avengers Mod Loader 1.1
+# Avengers Mod Loader 1.2
 
 by Space Trucker · Marvel's Avengers (PC, Steam version 2.8.2)
 
@@ -54,8 +54,10 @@ files are never changed.
 
 The same functions are exported as `ASH_GetVersion`, `ASH_MatchRva`, `ASH_PatchRva`, `ASH_FindPattern`.
 Mods are loaded from a background thread 0.5 s after start. `PatchRva` does not pause other threads:
-patch code that is not running at that moment. Windows' own `version.dll` functions are passed on to
-the system's `version.dll`.
+patch code that is not running at that moment. It may be called from any thread: each call holds the
+process-wide mutex `Local\AvengersModSlotHooks` while it checks, unprotects, writes and restores (the
+author's other mods take the same mutex around their own changes of memory rights), and restores each page's
+own rights. Windows' own `version.dll` functions are passed on to the system's `version.dll`.
 
 ## Licence
 Free for personal, non-commercial use. Re-uploading or publishing modified versions needs the author's

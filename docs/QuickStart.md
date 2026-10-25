@@ -1,4 +1,4 @@
-# Quick Start 1.0
+# Quick Start 1.1
 
 by Space Trucker · Marvel's Avengers (PC, Steam version 2.8.2) · Requires a mod loader: Avengers
 ScriptHook **or** Avengers Mod Loader (either one works).
@@ -15,7 +15,9 @@ Install a mod loader first (Avengers ScriptHook or Avengers Mod Loader). Then co
 the archive into the game folder (next to `Avengers.exe`).
 
 ## Settings
-`mods\QuickStart.ini`: set a line to `0` to switch that part off, then restart the game.
+`mods\QuickStart.ini`: set a line to `0` to switch that part off, then restart the game. Quick Start writes
+this file, with every part on, at its first start when there is none; updating Quick Start never replaces it.
+Without the file every part is on.
 
 | Setting | What it does |
 |---|---|
@@ -32,7 +34,8 @@ the archive into the game folder (next to `Avengers.exe`).
 - Use borderless or windowed mode for switching windows; exclusive full screen may still minimize.
 - If menus look unfinished right after start (on a very slow drive), set `SkipLegalWait=0`.
 - `mods\QuickStart.log` lists what was applied. If the game's code is not what Quick Start expects (another
-  game version or another mod), that part is skipped and logged.
+  game version or another mod), that part is skipped and logged. The photosensitivity warning needs three
+  changes: they are made all together or not at all.
 
 ## Uninstall
 Delete `mods\QuickStart.asi`, `mods\QuickStart.ini` and `mods\QuickStart.log`. Nothing in your save or the

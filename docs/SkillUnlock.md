@@ -1,4 +1,4 @@
-# Skill Unlock 1.1
+# Skill Unlock 1.2
 
 by Space Trucker · Marvel's Avengers (PC, Steam version 2.8.2) · Requires a mod loader: Avengers
 ScriptHook **or** Avengers Mod Loader (either one works).
@@ -32,6 +32,9 @@ the archive into the game folder (next to `Avengers.exe`).
 - Back up your saves first (`Documents\Marvel's Avengers\<your Steam ID>\`), or use Avengers Save Tool.
 - Meant for single player. Using changed progression online is at your own risk.
 - If it hits an unexpected error it switches itself off until the game restarts (see `mods\SkillUnlock.log`).
+  Your skill points and champion points are put back even then; restart the game before playing on.
+- Other tile mods can share the column in any load order (for mod authors: see
+  `src/Common/CharacterTiles.h`, the `AvengersTileChain` export).
 
 ## Uninstall
 Delete `mods\SkillUnlock.asi` and `mods\SkillUnlock.log`. Skills you already unlocked stay unlocked (they

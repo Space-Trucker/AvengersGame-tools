@@ -1,17 +1,3 @@
-// Avengers Save Tool - Marvel's Avengers (PC, Steam 2.8.2) save helper.
-//   * Unlock the war table + all heroes on a save (skips the Reassemble campaign)
-//   * Import a save shared by another player (re-encrypted for your Steam account)
-//   * Back up / restore your saves
-// Every change is preceded by a backup of the account's save files (.dat). The game must be closed.
-//
-// Save file format (found by the author):
-//   file = RC4(zlib(plain)) + CRC-64 of the zlib stream (8 bytes, little-endian)
-//   RC4 key = first 16 bytes of SHA-1(25 E2 E3 53 51 54 76 9D || SteamID64 little-endian)
-//   CRC-64: ECMA-182 polynomial table, reflected update, init 0, result inverted
-//   plain = 16 MB pool; blocks from 0x1AF49C (bytes used at 0x1AF498), block+8 = type | size_dwords << 8
-//   block type 4 holds {u32 key, u32 value} pairs; key 0x7C766BB1 is the story stage,
-//   0x06B870E3 = war table and heroes unlocked.
-// Build: csc /target:winexe /out:AvengersSaveTool.exe AvengersSaveTool.cs  (.NET Framework 4.x)
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -27,7 +13,6 @@ using System.Windows.Forms;
 [assembly: System.Reflection.AssemblyProduct("Avengers Save Tool")]
 [assembly: System.Reflection.AssemblyCompany("Space Trucker")]
 [assembly: System.Reflection.AssemblyCopyright("Space Trucker")]
-[assembly: System.Reflection.AssemblyVersion("1.0.0.0")]
 
 static class Save
 {
@@ -80,18 +65,15 @@ static class Save
         return ~r;
     }
 
-    public const int SaveSize = 0x1000000;       // plain size of a save1_N / savebk_N file (16 MB)
-    const int MaxFile = 64 << 20, MaxPlain = 32 << 20;
+    public const int SaveSize = 0x1000000;
+    public const int MaxFile = 64 << 20, MaxPlain = 32 << 20;
 
-    // Reads a file, refusing anything far larger than a save (shared files are untrusted).
     public static byte[] ReadFile(string path)
     {
         if (new FileInfo(path).Length > MaxFile) return null;
         return File.ReadAllBytes(path);
     }
 
-    // Returns the plain save data, or null if the file isn't a save for this SteamID. Output is capped,
-    // so a crafted file can't expand into gigabytes.
     public static byte[] Decode(byte[] file, ulong steamId)
     {
         if (file == null || file.Length < 16 || file.Length > MaxFile) return null;
@@ -117,7 +99,6 @@ static class Save
         catch (InvalidDataException) { return null; }
     }
 
-    // Decodes a save1_N / savebk_N file and checks it is a whole save (not a profile or anything else).
     public static byte[] DecodeSave(byte[] file, ulong steamId)
     {
         byte[] p = Decode(file, steamId);
@@ -131,7 +112,7 @@ static class Save
         {
             dst.WriteByte(0x78); dst.WriteByte(0x9C);
             using (var def = new DeflateStream(dst, CompressionLevel.Optimal, true)) def.Write(plain, 0, plain.Length);
-            uint a = 1, b = 0;   // Adler-32
+            uint a = 1, b = 0;
             foreach (byte x in plain) { a = (a + x) % 65521; b = (b + a) % 65521; }
             uint adler = (b << 16) | a;
             dst.WriteByte((byte)(adler >> 24)); dst.WriteByte((byte)(adler >> 16));
@@ -145,7 +126,20 @@ static class Save
         return o;
     }
 
-    // Offset of the story-stage value, or -1. Every offset is bounds-checked (shared saves are untrusted).
+    public static byte[] EncodeChecked(byte[] plain, ulong steamId)
+    {
+        byte[] data = Encode(plain, steamId);
+        byte[] back = DecodeSave(data, steamId);
+        return back != null && SameBytes(back, plain) ? data : null;
+    }
+
+    public static bool SameBytes(byte[] a, byte[] b)
+    {
+        if (a == null || b == null || a.Length != b.Length) return false;
+        for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) return false;
+        return true;
+    }
+
     public static int FindStage(byte[] p)
     {
         const int start = 0x1AF49C;
@@ -161,10 +155,8 @@ static class Save
             long blockEnd = Math.Min(o + size, end);
             if ((w & 0xFF) == 4)
             {
-                // {u32 key, u32 value} pairs on 8-byte steps from the block start
                 for (long i = o + 0x10; i + 8 <= blockEnd; i += 8)
                     if (BitConverter.ToUInt32(p, (int)i) == StageKey) return (int)i + 4;
-                return -1;
             }
             o += size;
         }
@@ -180,18 +172,109 @@ static class Save
     }
 }
 
+static class SaveFolder
+{
+    public static readonly Regex SaveName = new Regex(@"^save1_\d+\.dat$", RegexOptions.IgnoreCase);
+    public static readonly Regex BackupName = new Regex(@"^savebk_\d+\.dat$", RegexOptions.IgnoreCase);
+
+    public static bool IsSteamIdFolder(string name)
+    {
+        ulong id;
+        return name.Length >= 15 && name.Length <= 20 && name.All(c => c >= '0' && c <= '9') && ulong.TryParse(name, out id);
+    }
+
+    public static List<string> SaveFiles(string dir, bool withBackups)
+    {
+        return Directory.GetFiles(dir).Where(f => SaveName.IsMatch(Path.GetFileName(f)) ||
+                                              (withBackups && BackupName.IsMatch(Path.GetFileName(f))))
+                                      .OrderBy(f => f).ToList();
+    }
+
+    public static List<string> DatFiles(string dir)
+    {
+        return Directory.GetFiles(dir).Where(f => string.Equals(Path.GetExtension(f), ".dat", StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    public static bool GameRunning() { return Process.GetProcessesByName("Avengers").Length > 0; }
+
+    public static void WriteDurable(string path, byte[] data)
+    {
+        if (data == null) throw new ArgumentNullException("data");
+        using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16, FileOptions.WriteThrough))
+        {
+            fs.Write(data, 0, data.Length);
+            fs.Flush(true);
+        }
+    }
+
+    public static void WriteAtomic(string path, byte[] data)
+    {
+        string tmp = path + ".tmp";
+        WriteDurable(tmp, data);
+        if (File.Exists(path)) File.Replace(tmp, path, null);
+        else File.Move(tmp, path);
+    }
+
+    public static List<string> ReplaceSaves(string dir, IList<KeyValuePair<string, byte[]>> files)
+    {
+        string tag = ".savetool-" + DateTime.Now.ToString("yyyyMMddHHmmssfff");
+        var staged = new List<KeyValuePair<string, string>>();
+        var aside = new List<KeyValuePair<string, string>>();
+        var placed = new List<string>();
+        try
+        {
+            foreach (var kv in files)
+            {
+                if (kv.Value == null) throw new IOException(kv.Key + " has no data");
+                string final = Path.Combine(dir, kv.Key), tmp = final + tag + ".new";
+                staged.Add(new KeyValuePair<string, string>(tmp, final));
+                WriteDurable(tmp, kv.Value);
+                if (!Save.SameBytes(File.ReadAllBytes(tmp), kv.Value)) throw new IOException(kv.Key + " did not read back as written");
+            }
+            var old = SaveFiles(dir, true);
+            foreach (var kv in staged)
+                if (File.Exists(kv.Value) && !old.Any(o => string.Equals(o, kv.Value, StringComparison.OrdinalIgnoreCase))) old.Add(kv.Value);
+            foreach (string f in old)
+            {
+                string moved = f + tag + ".old";
+                File.Move(f, moved);
+                aside.Add(new KeyValuePair<string, string>(moved, f));
+            }
+            foreach (var kv in staged)
+            {
+                File.Move(kv.Key, kv.Value);
+                placed.Add(kv.Value);
+            }
+        }
+        catch
+        {
+            foreach (string f in placed) TryDelete(f);
+            foreach (var kv in aside) { try { File.Move(kv.Key, kv.Value); } catch { } }
+            foreach (var kv in staged) TryDelete(kv.Key);
+            throw;
+        }
+        var left = new List<string>();
+        foreach (var kv in aside) if (!TryDelete(kv.Key)) left.Add(kv.Key);
+        return left;
+    }
+
+    static bool TryDelete(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); return true; }
+        catch { return false; }
+    }
+}
+
 class MainForm : Form
 {
     static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Marvel's Avengers");
-    static readonly Regex SaveName = new Regex(@"^save1_\d+\.dat$", RegexOptions.IgnoreCase);
-    static readonly Regex BackupName = new Regex(@"^savebk_\d+\.dat$", RegexOptions.IgnoreCase);
     ComboBox account = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 260 };
     ListView list = new ListView { View = View.Details, FullRowSelect = true, Dock = DockStyle.Fill };
     TextBox log = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Bottom, Height = 120 };
 
     public MainForm()
     {
-        Text = "Avengers Save Tool 1.0 - by Space Trucker";
+        Text = "Avengers Save Tool " + BuildInfo.Version + " - by Space Trucker";
         Width = 760; Height = 520; StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 9f);
         list.Columns.Add("Save", 110); list.Columns.Add("Modified", 150); list.Columns.Add("Story stage", 300);
@@ -246,25 +329,9 @@ class MainForm : Form
         return false;
     }
 
-    static bool IsSteamIdFolder(string name) { return name.Length >= 15 && name.Length <= 20 && name.All(c => c >= '0' && c <= '9'); }
-
     static bool SamePath(string a, string b)
     {
         return string.Equals(Path.GetFullPath(a).TrimEnd('\\'), Path.GetFullPath(b).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
-    }
-
-    // save1_N.dat (and savebk_N.dat) only; Directory.GetFiles patterns also match 8.3 short names
-    // (e.g. "save1_1.dat_old"), so the names are checked exactly.
-    static List<string> SaveFiles(string dir, bool withBackups)
-    {
-        return Directory.GetFiles(dir).Where(f => SaveName.IsMatch(Path.GetFileName(f)) ||
-                                              (withBackups && BackupName.IsMatch(Path.GetFileName(f))))
-                                      .OrderBy(f => f).ToList();
-    }
-
-    static List<string> DatFiles(string dir)
-    {
-        return Directory.GetFiles(dir).Where(f => string.Equals(Path.GetExtension(f), ".dat", StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     void LoadAccounts()
@@ -273,7 +340,7 @@ class MainForm : Form
         list.Items.Clear();
         if (Directory.Exists(Root))
             foreach (string d in Directory.GetDirectories(Root))
-                if (IsSteamIdFolder(Path.GetFileName(d))) account.Items.Add(Path.GetFileName(d));
+                if (SaveFolder.IsSteamIdFolder(Path.GetFileName(d))) account.Items.Add(Path.GetFileName(d));
         if (account.Items.Count == 0) { Log("No save folder found in " + Root + ". Start the game once and make a save."); return; }
         account.SelectedIndex = 0;
     }
@@ -282,7 +349,7 @@ class MainForm : Form
     {
         list.Items.Clear();
         if (account.SelectedItem == null || !Directory.Exists(AccountDir)) return;
-        foreach (string f in SaveFiles(AccountDir, false))
+        foreach (string f in SaveFolder.SaveFiles(AccountDir, false))
         {
             string stage;
             try
@@ -299,10 +366,9 @@ class MainForm : Form
         }
     }
 
-    // Changing saves while the game runs is unsafe: it writes its saves on exit (and autosaves).
     bool GameClosed()
     {
-        if (Process.GetProcessesByName("Avengers").Length == 0) return true;
+        if (!SaveFolder.GameRunning()) return true;
         MessageBox.Show(this, "Please close Marvel's Avengers first.\n\nThe game writes its saves when it exits, which would undo the change.",
                         "Avengers Save Tool", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         return false;
@@ -312,25 +378,24 @@ class MainForm : Form
     {
         string dst = Path.Combine(Root, "SaveTool Backups", DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss-fff") + "_" + why, (string)account.SelectedItem);
         Directory.CreateDirectory(dst);
-        foreach (string f in DatFiles(AccountDir)) File.Copy(f, Path.Combine(dst, Path.GetFileName(f)));
+        foreach (string f in SaveFolder.DatFiles(AccountDir)) File.Copy(f, Path.Combine(dst, Path.GetFileName(f)));
         Log("Backup: " + dst);
         return dst;
     }
 
-    // Write via a temporary file and a rename, so an interrupted write never leaves a half-written save.
-    static void WriteAtomic(string path, byte[] data)
+    bool ReplaceSaves(string why, IList<KeyValuePair<string, byte[]>> files)
     {
-        string tmp = path + ".tmp";
-        File.WriteAllBytes(tmp, data);
-        if (File.Exists(path)) File.Replace(tmp, path, null);
-        else File.Move(tmp, path);
+        if (!GameClosed()) return false;
+        Backup(why);
+        foreach (string f in SaveFolder.ReplaceSaves(AccountDir, files)) Log("Could not delete " + Path.GetFileName(f) + " (the old file, kept beside the saves)");
+        return true;
     }
 
     void Unlock()
     {
         if (!HaveAccount() || !GameClosed()) return;
         var targets = list.SelectedItems.Count > 0 ? list.SelectedItems.Cast<ListViewItem>().Select(i => (string)i.Tag).ToList()
-                                                   : SaveFiles(AccountDir, false);
+                                                   : SaveFolder.SaveFiles(AccountDir, false);
         if (targets.Count == 0) { Log("No saves to change."); return; }
         Backup("before-unlock");
         int changed = 0;
@@ -341,11 +406,9 @@ class MainForm : Form
             if (at < 0) { Log(Path.GetFileName(f) + ": skipped (can't read it or no story stage)"); continue; }
             if (BitConverter.ToUInt32(plain, at) == Save.StageUnlocked) { Log(Path.GetFileName(f) + ": already unlocked"); continue; }
             Buffer.BlockCopy(BitConverter.GetBytes(Save.StageUnlocked), 0, plain, at, 4);
-            byte[] data = Save.Encode(plain, SteamId);
-            byte[] check = Save.DecodeSave(data, SteamId);
-            if (check == null || Save.FindStage(check) != at || BitConverter.ToUInt32(check, at) != Save.StageUnlocked)
-                throw new Exception("Verification failed for " + Path.GetFileName(f) + "; nothing was written.");
-            WriteAtomic(f, data);
+            byte[] data = Save.EncodeChecked(plain, SteamId);
+            if (data == null) throw new Exception("Verification failed for " + Path.GetFileName(f) + "; nothing was written.");
+            SaveFolder.WriteAtomic(f, data);
             changed++;
             Log(Path.GetFileName(f) + ": war table + heroes unlocked");
         }
@@ -363,19 +426,19 @@ class MainForm : Form
             src = dlg.SelectedPath;
         }
         if (SamePath(src, AccountDir)) { Log("That is this account's own save folder; pick the folder with the shared files."); return; }
-        var files = SaveFiles(src, true);
+        var files = SaveFolder.SaveFiles(src, true);
         if (files.Count == 0) { Log("No save1_*.dat files in " + src); return; }
         var raw = files.Select(f => Save.ReadFile(f)).ToList();
-        // Find the SteamID the shared files were made with: the folder name, else ask.
+
         ulong srcId = 0;
         string name = Path.GetFileName(src.TrimEnd('\\'));
-        if (IsSteamIdFolder(name) && raw.Any(d => Save.DecodeSave(d, ulong.Parse(name)) != null)) srcId = ulong.Parse(name);
+        if (SaveFolder.IsSteamIdFolder(name) && raw.Any(d => Save.DecodeSave(d, ulong.Parse(name)) != null)) srcId = ulong.Parse(name);
         while (srcId == 0)
         {
             string s = Prompt("The shared save's owner Steam ID (the 17-digit name of the folder it came from):");
             if (s == null) return;
             s = s.Trim();
-            if (IsSteamIdFolder(s) && raw.Any(d => Save.DecodeSave(d, ulong.Parse(s)) != null)) srcId = ulong.Parse(s);
+            if (SaveFolder.IsSteamIdFolder(s) && raw.Any(d => Save.DecodeSave(d, ulong.Parse(s)) != null)) srcId = ulong.Parse(s);
             else MessageBox.Show(this, "These files can't be opened with that Steam ID.", "Avengers Save Tool");
         }
         var converted = new List<KeyValuePair<string, byte[]>>();
@@ -383,14 +446,14 @@ class MainForm : Form
         {
             byte[] plain = Save.DecodeSave(raw[i], srcId);
             if (plain == null) { Log(Path.GetFileName(files[i]) + ": skipped (damaged or from another account)"); continue; }
-            converted.Add(new KeyValuePair<string, byte[]>(Path.GetFileName(files[i]), Save.Encode(plain, SteamId)));
+            byte[] data = Save.EncodeChecked(plain, SteamId);
+            if (data == null) throw new Exception("Verification failed for " + Path.GetFileName(files[i]) + "; nothing was written.");
+            converted.Add(new KeyValuePair<string, byte[]>(Path.GetFileName(files[i]), data));
         }
         if (converted.Count == 0) { Log("Nothing could be imported."); return; }
         if (MessageBox.Show(this, string.Format("Replace this account's saves with {0} imported file(s)?\nYour current saves are backed up first; your settings (profile1.dat) are kept.",
                 converted.Count), "Avengers Save Tool", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-        Backup("before-import");
-        foreach (string f in SaveFiles(AccountDir, true)) File.Delete(f);
-        foreach (var kv in converted) WriteAtomic(Path.Combine(AccountDir, kv.Key), kv.Value);
+        if (!ReplaceSaves("before-import", converted)) return;
         Log(string.Format("Imported {0} file(s) from Steam ID {1}.", converted.Count, srcId));
         LoadSaves();
     }
@@ -406,19 +469,24 @@ class MainForm : Form
             sel = dlg.SelectedPath;
         }
         if (SamePath(sel, AccountDir)) { Log("That is the live save folder, not a backup."); return; }
-        // Read everything into memory first; nothing is deleted until all of it has been read and checked.
-        var files = DatFiles(sel).Where(f => SaveName.IsMatch(Path.GetFileName(f)) || BackupName.IsMatch(Path.GetFileName(f)) ||
+
+        var files = SaveFolder.DatFiles(sel).Where(f => SaveFolder.SaveName.IsMatch(Path.GetFileName(f)) || SaveFolder.BackupName.IsMatch(Path.GetFileName(f)) ||
                                              string.Equals(Path.GetFileName(f), "profile1.dat", StringComparison.OrdinalIgnoreCase)).ToList();
-        var saves = files.Where(f => SaveName.IsMatch(Path.GetFileName(f))).ToList();
+        var saves = files.Where(f => SaveFolder.SaveName.IsMatch(Path.GetFileName(f))).ToList();
         if (saves.Count == 0) { Log("No save1_*.dat files in that folder."); return; }
         var data = files.ToDictionary(f => Path.GetFileName(f), f => Save.ReadFile(f));
+        var unread = data.Where(kv => kv.Value == null).Select(kv => kv.Key).ToList();
+        if (unread.Count > 0)
+        {
+            MessageBox.Show(this, "These files are too large to be saves of this game, so nothing was restored:\n" + string.Join("\n", unread),
+                            "Avengers Save Tool", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
         int readable = saves.Count(f => Save.DecodeSave(data[Path.GetFileName(f)], SteamId) != null);
         if (readable == 0) { MessageBox.Show(this, "None of these saves belong to this account, so the game couldn't load them.\nUse \"Import a shared save\" for saves from another account.", "Avengers Save Tool"); return; }
         if (MessageBox.Show(this, string.Format("Restore {0} file(s) from\n{1}?\n({2} of {3} saves are readable for this account.)\nThe current saves are backed up first.",
                 files.Count, sel, readable, saves.Count), "Avengers Save Tool", MessageBoxButtons.YesNo) != DialogResult.Yes) return;
-        Backup("before-restore");
-        foreach (string f in SaveFiles(AccountDir, true)) File.Delete(f);
-        foreach (var kv in data) WriteAtomic(Path.Combine(AccountDir, kv.Key), kv.Value);
+        if (!ReplaceSaves("before-restore", data.ToList())) return;
         Log("Restored from " + sel);
         LoadSaves();
     }

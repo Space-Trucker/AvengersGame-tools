@@ -5,7 +5,8 @@ title: ''
 labels: bug
 ---
 
-**Which tool and version?** (Avengers Mod Loader 1.1 / Skill Unlock 1.0 / Avengers Save Tool 1.0)
+**Which tool and version?** (Avengers Mod Loader / Skill Unlock / Collection Unlock / Quick Start / Avengers Save
+Tool; the version is on the first line of the tool's log, or in the Save Tool's title bar)
 
 **Game version and platform:** (e.g. Steam 2.8.2, Windows 11 / Steam Deck)
 
@@ -15,5 +16,5 @@ labels: bug
 
 **Steps to reproduce:**
 
-**Logs:** paste `mods\ModLoader.log` or `mods\SkillUnlock.log`, or the Save Tool's
-message. Do not attach save files.
+**Logs:** paste the tool's log from the `mods` folder (`ModLoader.log`, `SkillUnlock.log`,
+`CollectionUnlock.log`, `QuickStart.log`), or the Save Tool's message. Do not attach save files.

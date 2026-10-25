@@ -1,6 +1,8 @@
 #define MOD_NAME L"CollectionUnlock"
 #include "..\Common\CharacterTiles.h"
 
+using namespace tiles;
+
 static const uintptr_t RVA_LOCKABLE = 0x4D96DD0, RVA_ITEMTYPE = 0x20F4090, RVA_OWNED = 0x2105F10;
 static const uintptr_t RVA_GIVE = 0x21138A0, RVA_OUTFITPACKOK = 0x1F89450;
 static const uintptr_t RVA_COLDB = 0x4E04DB8, RVA_ACCOUNT = 0x1F7C9D0, RVA_COLGIVE = 0x1ACDC10;
@@ -9,6 +11,8 @@ static const uintptr_t RVA_GIFTCFG = 0x4D96E80, RVA_OUTFITS = 0x4D96E48, RVA_HER
 static const uintptr_t RVA_PROFILE = 0x1F79DF0, RVA_HEROSTRUCT = 0x1D8E3A0;
 static const uintptr_t RVA_INVSLOT = 0x1F7BB10, RVA_INVADD = 0x1F83970;
 static const uint32_t STORE_OFFSET = 0x500C, STORE_SIZE = 0x400;
+static const uintptr_t PROFILE_GRANTS_ON = 0x630;
+static const int MAX_PASSES = 8;
 
 typedef uint32_t (__fastcall *ItemTypeFn)(uint32_t);
 typedef bool (__fastcall *OwnedFn)(uint32_t);
@@ -29,7 +33,12 @@ struct Tally {
     int locked[T_COUNT], given[T_COUNT], unavailable, gift;
     int col, colGiven, colKinds[K_COUNT], colUnavailable;
     int comicTiers, comicsMaxed;
+    uint64_t lockedSet;
 };
+
+static void Mark(Tally& t, uint32_t what, uint32_t detail) {
+    t.lockedSet = (t.lockedSet ^ (((uint64_t)what << 32) | detail)) * 0x100000001B3ULL;
+}
 
 static const char* TypeName(int t) {
     switch (t) { case T_OUTFIT: return "outfits"; case T_EMOTE: return "emotes"; case T_TAKEDOWN: return "takedowns"; case T_NAMEPLATE: return "nameplates"; }
@@ -49,6 +58,7 @@ static bool WalkCosmetics(bool grant, Tally& t) {
         if (((OwnedFn)(g_base + RVA_OWNED))(id)) continue;
         if (ty == T_OUTFIT && !((OutfitPackOkFn)(g_base + RVA_OUTFITPACKOK))(id)) { t.unavailable++; continue; }
         t.locked[ty]++;
+        Mark(t, ty, id);
         if (grant && ((GiveFn)(g_base + RVA_GIVE))(id, 1)) t.given[ty]++;
     }
     return true;
@@ -104,6 +114,7 @@ static bool WalkCollectibles(bool grant, Tally& t) {
                 uint16_t have = *(uint16_t*)(rec + 6), target = TargetCopies(db, it);
                 if (have >= target) continue;
                 if (have) t.comicTiers++; else { t.col++; if (kind < K_COUNT) t.colKinds[kind]++; }
+                Mark(t, 0x10000 | id, have);
                 if (grant) {
                     ((CollectibleGiveFn)(g_base + RVA_COLGIVE))(entity, it, (uint16_t)(target - have), 0, 0, 0xFFFF, 0, 7, 0);
                     uint16_t now = *(uint16_t*)(rec + 6);
@@ -150,6 +161,8 @@ static uintptr_t CurrentProfile() {
     return entity ? ((ProfileFn)(g_base + RVA_PROFILE))(entity) : 0;
 }
 
+static bool GrantsOn(uintptr_t profile) { return profile && *(uint8_t*)(profile + PROFILE_GRANTS_ON) != 0; }
+
 static void WalkGift(bool grant, Tally& t) {
     uintptr_t profile = CurrentProfile();
     GiftOutfit g;
@@ -157,7 +170,8 @@ static void WalkGift(bool grant, Tally& t) {
     uint8_t* slot = GiftSlot(g, profile, false);
     if (slot && *(uint32_t*)(slot + 0x28)) return;
     t.locked[T_OUTFIT]++; t.gift++;
-    if (!grant || !*(uint8_t*)(profile + 0x630)) return;
+    Mark(t, 0x20000, g.outfit);
+    if (!grant || !GrantsOn(profile)) return;
     slot = GiftSlot(g, profile, true);
     if (!slot) return;
     *(uint32_t*)(slot + 0x28) = g.style;
@@ -167,6 +181,7 @@ static void WalkGift(bool grant, Tally& t) {
 
 static bool Walk(bool grant, Tally& t) {
     memset(&t, 0, sizeof t);
+    t.lockedSet = 0xCBF29CE484222325ULL;
     bool cosmetics = WalkCosmetics(grant, t);
     WalkGift(grant, t);
     bool collectibles = WalkCollectibles(grant, t);
@@ -179,17 +194,21 @@ static int Locked(const Tally& t) {
 
 static int g_stuck = -1;
 static uintptr_t g_stuckProfile;
+static int g_lockedNow = -1;
 
 static void UnlockAll() {
     uintptr_t entity = PlayerEntity();
     if (!entity) { Log("no hero"); return; }
-    Tally total;
-    bool readable = true;
-    for (int pass = 0; pass < 8; pass++) {
+    if (!GrantsOn(CurrentProfile())) {
+        Log("the game does not take grants for this profile right now - nothing given; press again later");
+        return;
+    }
+
+    Tally total, before, after;
+    bool readable = Walk(false, before);
+    for (int pass = 0; pass < MAX_PASSES; pass++) {
         Tally t;
         readable = Walk(true, t);
-        int given = t.colGiven + t.comicsMaxed;
-        for (int ty = T_OUTFIT; ty < T_COUNT; ty++) given += t.given[ty];
         if (pass == 0) {
             total = t;
         } else {
@@ -197,7 +216,9 @@ static void UnlockAll() {
             total.colGiven += t.colGiven;
             total.comicsMaxed += t.comicsMaxed;
         }
-        if (!given) break;
+        bool counted = Walk(false, after);
+        if (!counted || Locked(after) == 0 || after.lockedSet == before.lockedSet) break;
+        before = after;
     }
     if (!readable) Log("warning: the cosmetics or the collectibles list is not loaded; gave what was there");
     for (int ty = T_OUTFIT; ty < T_COUNT; ty++)
@@ -207,7 +228,6 @@ static void UnlockAll() {
         total.colGiven, total.colKinds[K_INTEL], total.colKinds[K_COMIC], total.colKinds[K_CODEX],
         total.col - total.colKinds[K_INTEL] - total.colKinds[K_COMIC] - total.colKinds[K_CODEX]);
     Log("  %-12s %4d raised to their top tier", "comics", total.comicsMaxed);
-    Tally after;
     readable = Walk(false, after);
     Log("done: %d still locked afterwards (outfits %d, emotes %d, takedowns %d, nameplates %d, collectibles %d, "
         "comics below top tier %d); "
@@ -222,13 +242,15 @@ static void UnlockAll() {
 static bool AllDone() {
     Tally t;
     if (!Walk(false, t)) return false;
-    int n = Locked(t);
-    return n == 0 || (n == g_stuck && CurrentProfile() == g_stuckProfile);
+    g_lockedNow = Locked(t);
+    return g_lockedNow == 0 || (g_lockedNow == g_stuck && CurrentProfile() == g_stuckProfile);
 }
+
+static const char* DoneLabel() { return g_lockedNow == 0 ? "ALL OWNED" : "ALL GIVEN"; }
 
 static TileHooks g_next;
 static SlotOwnerKind g_under;
-static TileButton g_tile = { COLLECTION_TILE_ID, "COLLECTION", "ALL OWNED", "UNLOCK COLLECTION", AllDone, UnlockAll };
+static TileButton g_tile = { COLLECTION_TILE_ID, "COLLECTION", "ALL OWNED", "UNLOCK COLLECTION", AllDone, UnlockAll, DoneLabel };
 
 static void __fastcall Layout(uint8_t* w) {
     if (!g_tile.faulted) __try {
@@ -257,6 +279,6 @@ static void ModMain() {
     if (const char* err = InstallTile(OWNER_COLLECTION, Layout, Refresh, Action, g_next, g_under)) {
         Log("%s - not installed", err); return;
     }
-    Log("Collection Unlock 1.0 ready: Character screen > COLLECTION (press twice to confirm)%s",
-        g_under == OWNER_SKILL ? ", together with Skill Unlock" : "");
+    Log("Collection Unlock %s ready: Character screen > COLLECTION (press twice to confirm)%s", MOD_VERSION,
+        g_under == OWNER_SKILL ? ", together with Skill Unlock" : g_under == OWNER_CHAIN ? ", over another tile mod" : "");
 }

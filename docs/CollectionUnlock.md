@@ -1,4 +1,4 @@
-# Collection Unlock 1.0
+# Collection Unlock 1.1
 
 by Space Trucker · Marvel's Avengers (PC, Steam version 2.8.2) · Requires a mod loader: Avengers
 ScriptHook **or** Avengers Mod Loader (either one works).
@@ -12,7 +12,8 @@ is still locked, for every hero:
 The final update (2.8) made most Marketplace cosmetics free but kept some locked, such as campaign
 rewards and cosmetic vendor items. Collectibles are normally found one by one in missions. This mod hands
 all of them out through the game's own reward and pickup code, so they are saved like items you earned,
-and any rewards linked to them are given too. No popups are shown.
+and any rewards linked to them are given too. No popups are shown. One value is set directly first: the
+"seen" mark of collectibles the game hides until you find them, so they can be given.
 
 It also unlocks the final update's Founder's Gift: Iron Man's **Variable Threat Response** suit (the
 "War Machine" armor). The game only gives it to players with a Steam achievement earned before April 2023,
@@ -27,7 +28,7 @@ the game marks as unreleased. They are left as they are and not counted.
 2. In the left column there is a new tile: **COLLECTION**. It sits under Skill Unlock's **UNLOCK ALL** if
    you use that mod, or under **SKILLS** if you don't. Select it: it changes to **CONFIRM?**.
 3. Select it again within 4 seconds. Everything is given at once, for all heroes. The tile then reads
-   **ALL OWNED**.
+   **ALL OWNED**, or **ALL GIVEN** if the game kept something locked (the log lists what is left).
 4. Pick outfits, emotes, takedowns and nameplates in each hero's Appearance screen. Comics, intel and the
    codex are in the Collections screen.
 
@@ -45,6 +46,8 @@ and may not install next to it.
 - The tile uses a free slot in that column (it has four). If only one slot is free, Skill Unlock's UNLOCK ALL
   gets it and no COLLECTION tile is added.
 - `mods\CollectionUnlock.log` lists, for each type, how many items were locked and how many were given.
+- **Nothing was given and the log says "the game does not take grants for this profile right now":** the
+  profile is not ready for rewards yet. The tile stays pressable: press it again a little later.
 
 ## Good to know
 - Everything you unlock is part of your save. Back up your saves first

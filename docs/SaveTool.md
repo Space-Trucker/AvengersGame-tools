@@ -1,4 +1,4 @@
-# Avengers Save Tool 1.0
+# Avengers Save Tool 1.1
 
 by Space Trucker · Marvel's Avengers (PC, Steam version 2.8.2) · Windows only · no mod loader needed,
 nothing is installed.
@@ -29,6 +29,9 @@ nothing is installed.
 Steam ID inside one of the dated folders in `Documents\Marvel's Avengers\SaveTool Backups\`. Your
 current saves are backed up first, so a restore can itself be undone.
 
+Import and Restore replace the saves as one change: the new files are written and checked first, and only
+then are the old ones swapped out. If anything goes wrong on the way, the save folder is left as it was.
+
 ## Steam Cloud
 Steam Cloud can bring old saves back. If Steam later shows a Cloud conflict, choose the files on this PC
 (local). Or turn Steam Cloud off for the game (Steam > Properties > General).
@@ -43,7 +46,7 @@ Steam Cloud can bring old saves back. If Steam later shows a Cloud conflict, cho
   "Import a shared save" instead.
 
 ## Notes
-- Needs .NET Framework 4.x, which is part of Windows 10 and 11.
+- Needs .NET Framework 4.5 or later, which is part of Windows 10 and 11.
 - Unlocking changes one story value in the save; nothing else in the save's data changes. (The file is
   re-compressed and re-encrypted, so its bytes on disk look completely different, which is normal.)
 - Meant for your own saves and single player. Using changed progression online is at your own risk.
