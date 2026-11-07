@@ -2,6 +2,12 @@
 
 by Space Trucker · Marvel's Avengers (PC, Steam version 2.8.2)
 
+> **No longer maintained.** This loader won't get updates or support. Please use
+> [Avengers ScriptHook](https://www.nexusmods.com/marvelsavengers/mods/19) instead.
+>
+> To switch, install ScriptHook and let it replace `version.dll` in the game folder. Your `mods` folder stays as it
+> is. The source and the last release stay here.
+
 A small loader for native mods. At game start it loads every `*.asi` file in the `mods` folder next to
 the game.
 

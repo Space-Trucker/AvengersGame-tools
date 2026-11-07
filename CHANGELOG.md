@@ -2,6 +2,10 @@
 
 All notable changes per tool. Dates are YYYY-MM-DD.
 
+## 2026-11-07: Avengers Mod Loader no longer maintained
+
+It won't get updates or support. Please use Avengers ScriptHook instead. The source and version 1.2 stay available here.
+
 ## 2026-10-25: fixes for every tool
 
 ### Avengers Mod Loader 1.2

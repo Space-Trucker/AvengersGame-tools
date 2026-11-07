@@ -4,7 +4,7 @@ Mods and tools for **Marvel's Avengers (PC, Steam version 2.8.2)** by Space Truc
 
 | Tool | Version | What it does | Docs |
 |---|---|---|---|
-| **Avengers Mod Loader** | 1.2 | Loads `.asi` mods from the game's `mods` folder (a `version.dll` loader). Runs mods written for Avengers ScriptHook's interface. Use it *or* ScriptHook, not both. | [docs/ModLoader.md](docs/ModLoader.md) |
+| **Avengers Mod Loader** | 1.2 | **No longer maintained: please use [Avengers ScriptHook](https://www.nexusmods.com/marvelsavengers/mods/19).** Loads `.asi` mods from the game's `mods` folder (a `version.dll` loader). Runs mods written for Avengers ScriptHook's interface. Use it *or* ScriptHook, not both. | [docs/ModLoader.md](docs/ModLoader.md) |
 | **Skill Unlock** | 1.2 | An **UNLOCK ALL** button on the Character screen: levels the current hero to 50 and max champion level, and buys every skill through the game's own code. Needs a mod loader (ScriptHook or Avengers Mod Loader). | [docs/SkillUnlock.md](docs/SkillUnlock.md) |
 | **Collection Unlock** | 1.1 | A **COLLECTION** button on the Character screen (under Skill Unlock's): gives every locked outfit and outfit style, emote, takedown and nameplate, and every comic (at its top tier), intel file and codex entry, through the game's own reward and pickup code, plus the final update's Founder's Gift (Iron Man's Variable Threat / War Machine suit). Needs a mod loader. | [docs/CollectionUnlock.md](docs/CollectionUnlock.md) |
 | **Quick Start** | 1.1 | Keeps the game loading when its window is in the background, and skips the startup screens (warning, legal wait, intro movie, press any key) straight to the main menu. Each part can be switched off. Needs a mod loader. | [docs/QuickStart.md](docs/QuickStart.md) |
